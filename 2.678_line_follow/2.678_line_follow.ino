@@ -7,7 +7,21 @@ const int BIN1 =7; // Pololu drive B
 const int BIN2 =6;
 const int PWMB =5;
 
+const int left_w = 190;
+const int left_b = 921;
+const int mid_w = 84;
+const int mid_b = 845;
+const int right_w = 130;
+const int right_b = 886;
 
+const int normal_time = 0;
+const int thin_time = 0;
+const int qr_time = 0;
+const int tight_wiggle_time = 0;
+const int broken_time = 0;
+const int right_angle_loop_time = 0;
+const int parallel_time = 0;
+const int infinite_loop_time = 0;
 
 void setup()
 {
@@ -25,9 +39,9 @@ void setup()
 
 void loop()
 {
-  int sensorL = analogRead(A0);
+  int sensorR = analogRead(A0);
   int sensorM = analogRead(A1);
-  int sensorR = analogRead(A2);
+  int sensorL = analogRead(A2);
 
   Serial.print(sensorL);
   Serial.print(",");
@@ -36,13 +50,9 @@ void loop()
   Serial.print(",");
 
   Serial.println(sensorR);
-//
-//  drive(100,100); //drive forwards
-//  delay(1000);
-//  drive(0, 100);
-//  delay(1000);
-//  drive(100,100);
-//  delay(1000);
+
+  line_follower_normal(sensorL, sensorM, sensorR);
+  delay(30);
 }
 
 void motorWrite(int spd, int pin_IN1 , int pin_IN2 , int pin_PWM)
@@ -67,7 +77,95 @@ void drive(int speedL, int speedR)
   motorWrite(-speedL, BIN1, BIN2, PWMB);
 }
 
-void line_detect(int sensorL, int sensorM, int sensorR);
+enum Direction
 {
-  
+  LEFT,
+  RIGHT,
+  MID
+};
+
+const int TURN_FORWARD_SPEED_INIT = 80;
+const int TURN_BACKWARD_SPEED_INIT = 60;
+const float TURN_DECAY_RATE = 1.2;
+const int N_TURNS_THRES = 8;
+const int BLACK_THRES = 450;
+
+void line_follower_normal(int sensorL, int sensorM, int sensorR)
+{
+  bool left_white = sensorL < BLACK_THRES;
+  bool right_white = sensorR < BLACK_THRES;
+  bool mid_white = sensorM < BLACK_THRES;
+  int drive_speed = 200;
+  int turn_forward_speed = TURN_FORWARD_SPEED_INIT;
+  int turn_backward_speed = TURN_BACKWARD_SPEED_INIT;
+  Direction last_dir = MID;
+  Direction dir = MID;
+  int n_turns = 0;
+
+  if (!mid_white)
+  {
+    if (left_white && right_white)
+    {
+      dir = MID;
+    }
+    else if (left_white)
+    {
+      dir = RIGHT;
+    }
+    else if (right_white)
+    {
+      dir = LEFT;
+    }
+    else
+    {
+      dir = MID;
+    }
+  }
+  else
+  {
+    if (!right_white)
+    {
+      dir = RIGHT;
+    }
+    else if (!left_white)
+    {
+      dir = LEFT;
+    }
+    else
+    {
+      dir = MID;
+      delay(100);
+    }
+  }
+
+  if (last_dir != dir)
+  {
+    ++n_turns;
+  }
+  if (dir == MID)
+  {
+    turn_forward_speed = TURN_FORWARD_SPEED_INIT;
+    turn_backward_speed = TURN_BACKWARD_SPEED_INIT;
+    n_turns == 0;
+  }
+  if (n_turns > N_TURNS_THRES)
+  {
+    turn_forward_speed = turn_forward_speed / TURN_DECAY_RATE;
+    turn_backward_speed = turn_backward_speed / TURN_DECAY_RATE;
+  }
+  last_dir = dir;
+
+  switch (dir)
+  {
+    case LEFT:
+      drive(-turn_backward_speed, turn_forward_speed);
+      break;
+    case RIGHT:
+      drive(turn_forward_speed, -turn_backward_speed);
+      break;
+    case MID:
+      drive(drive_speed, drive_speed);
+      break;
+  }
 }
+
