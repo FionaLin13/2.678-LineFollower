@@ -1,3 +1,5 @@
+#include <QTRSensors.h>
+
 // Pololu #713 motor driver pin assignments
 const int PWMA=11; // Pololu drive A
 const int AIN2=10;
@@ -15,10 +17,27 @@ const int broken_time = 0;
 const int right_angle_loop_time = 0;
 const int parallel_time = 0;
 const int infinite_loop_time = 0;
+
 QTRSensors qtr;
 
 const uint8_t SensorCount = 3;
 uint16_t sensorValues[SensorCount];
+
+#include <PID_v1.h>
+
+#define PIN_INPUT 0
+#define PIN_OUTPUT 3
+
+//Define Variables we'll be connecting to
+double Setpoint, Input, Output;
+
+//Define the aggressive and conservative Tuning Parameters
+double aggKp=4, aggKi=0.2, aggKd=1;
+double consKp=1, consKi=0.05, consKd=0.25;
+
+//Specify the links and initial tuning parameters
+PID myPID(&Input, &Output, &Setpoint, consKp, consKi, consKd, DIRECT);
+
 
 void setup()
 {
@@ -67,6 +86,15 @@ void setup()
   Serial.println();
   Serial.println();
   delay(1000);
+
+    //initialize the variables we're linked to
+  Input = analogRead(PIN_INPUT);
+  Setpoint = 100;
+
+  //turn the PID on
+  myPID.SetMode(AUTOMATIC);
+}
+
 }
 
 void loop()
@@ -101,6 +129,22 @@ void loop()
   Serial.println(position);
 
   delay(250);
+
+  Input = analogRead(PIN_INPUT);
+
+  double gap = abs(Setpoint-Input); //distance away from setpoint
+  if (gap < 10)
+  {  //we're close to setpoint, use conservative tuning parameters
+    myPID.SetTunings(consKp, consKi, consKd);
+  }
+  else
+  {
+     //we're far from setpoint, use aggressive tuning parameters
+     myPID.SetTunings(aggKp, aggKi, aggKd);
+  }
+
+  myPID.Compute();
+  analogWrite(PIN_OUTPUT, Output);
 }
 
 void motorWrite(int spd, int pin_IN1 , int pin_IN2 , int pin_PWM)

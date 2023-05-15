@@ -133,8 +133,6 @@ void line_follower_normal(int sensorL, int sensorM, int sensorR)
     }
     else
     {
-      dir = MID;
-      delay(100);
     }
   }
 
@@ -168,4 +166,3 @@ void line_follower_normal(int sensorL, int sensorM, int sensorR)
       break;
   }
 }
-
